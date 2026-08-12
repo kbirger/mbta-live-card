@@ -2,16 +2,16 @@ import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { DEFAULT_FIELDS, DEFAULT_MAX_TRIPS } from "./const";
 import { FIELD_REGISTRY } from "./fields";
-import { deviceDisplayName, isMbtaLiveEntityId, suggestEntitiesForDevice } from "./suggest";
+import { deviceDisplayName, isMbtaLiveEntityId } from "./suggest";
 import { CardConfig, HomeAssistant, SourceConfig } from "./types";
 
 interface IndexedTarget extends HTMLElement {
   index: number;
 }
 
-// HA's picker components (ha-device-picker, ha-entity-picker, ...) call this
-// with either a full state object or a bare entity id depending on frontend
-// version — handle both so filtering keeps working either way.
+// ha-device-picker's entityFilter is called with a full state object (or,
+// on some frontend versions, a bare entity id) — handle both so this keeps
+// scoping the picker to MBTA Live devices either way.
 function mbtaEntityFilter(entityOrId: string | { entity_id: string }): boolean {
   const entityId = typeof entityOrId === "string" ? entityOrId : entityOrId.entity_id;
   return isMbtaLiveEntityId(entityId);
@@ -74,8 +74,8 @@ export class MbtaLiveCardEditor extends LitElement {
       <div class="section">
         <div class="section-title">Sources</div>
         <div class="hint">
-          One source per MBTA Live device (each of your depart→arrive stop pairs). Pick a device and its trip
-          sensors are added automatically.
+          One source per MBTA Live device (each of your depart→arrive stop pairs). MBTA Live already creates an
+          entity for every field above, so picking a device is all that's needed here.
         </div>
         ${sources.map((source, index) => this._renderSource(source, index))}
         <ha-button @click=${this._addSource}>+ Add source</ha-button>
@@ -84,22 +84,10 @@ export class MbtaLiveCardEditor extends LitElement {
   }
 
   private _renderSource(source: SourceConfig, index: number) {
-    const entities = source.entities ?? [];
     return html`
       <div class="source">
-        <div class="source-row">
-          <ha-textfield
-            class="source-label"
-            label="Label (optional)"
-            .value=${source.label ?? ""}
-            .index=${index}
-            @change=${this._onSourceLabelChanged}
-          ></ha-textfield>
-          <button class="remove-source" .index=${index} @click=${this._removeSource} title="Remove source">
-            Remove
-          </button>
-        </div>
         <ha-device-picker
+          class="source-device"
           .hass=${this.hass}
           .value=${source.device_id ?? ""}
           .index=${index}
@@ -107,43 +95,18 @@ export class MbtaLiveCardEditor extends LitElement {
           label="MBTA Live device"
           @value-changed=${this._onDevicePicked}
         ></ha-device-picker>
-
-        ${entities.length > 0
-          ? html`
-              <div class="entity-chips">
-                ${entities.map(
-                  (entityId, entityIndex) => html`
-                    <span class="chip">
-                      ${this._entityLabel(entityId)}
-                      <button
-                        class="chip-remove"
-                        .index=${index}
-                        .entityIndex=${entityIndex}
-                        @click=${this._removeEntity}
-                        title="Remove entity"
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  `
-                )}
-              </div>
-            `
-          : html`<div class="hint">No entities yet — pick a device above, or add one manually below.</div>`}
-
-        <ha-entity-picker
-          .hass=${this.hass}
+        <ha-textfield
+          class="source-label"
+          label="Label (optional)"
+          .value=${source.label ?? ""}
           .index=${index}
-          .entityFilter=${this._entityFilter}
-          label="Add entity manually"
-          @value-changed=${this._onEntityAdded}
-        ></ha-entity-picker>
+          @change=${this._onSourceLabelChanged}
+        ></ha-textfield>
+        <button class="remove-source" .index=${index} @click=${this._removeSource} title="Remove source">
+          Remove
+        </button>
       </div>
     `;
-  }
-
-  private _entityLabel(entityId: string): string {
-    return this.hass?.states?.[entityId]?.attributes?.friendly_name ?? entityId;
   }
 
   private _updateConfig(patch: Partial<CardConfig>): void {
@@ -184,7 +147,7 @@ export class MbtaLiveCardEditor extends LitElement {
   };
 
   private _addSource = (): void => {
-    const sources = [...(this._config.sources ?? []), { entities: [] }];
+    const sources = [...(this._config.sources ?? []), {}];
     this._updateConfig({ sources });
   };
 
@@ -203,35 +166,11 @@ export class MbtaLiveCardEditor extends LitElement {
   private _onDevicePicked = (ev: CustomEvent<{ value: string }>): void => {
     const index = (ev.currentTarget as IndexedTarget).index;
     const deviceId = ev.detail.value;
-    if (!deviceId) {
-      this._updateSource(index, { device_id: undefined });
-      return;
-    }
-    const suggested = suggestEntitiesForDevice(deviceId, this.hass);
     const source = (this._config.sources ?? [])[index];
     this._updateSource(index, {
-      device_id: deviceId,
-      entities: suggested,
-      label: source?.label ?? deviceDisplayName(deviceId, this.hass),
+      device_id: deviceId || undefined,
+      label: source?.label ?? (deviceId ? deviceDisplayName(deviceId, this.hass) : undefined),
     });
-  };
-
-  private _onEntityAdded = (ev: CustomEvent<{ value: string }>): void => {
-    const target = ev.currentTarget as IndexedTarget & { value?: string };
-    const entityId = ev.detail.value;
-    if (!entityId) return;
-    const source = (this._config.sources ?? [])[target.index];
-    if (!source || (source.entities ?? []).includes(entityId)) return;
-    this._updateSource(target.index, { entities: [...(source.entities ?? []), entityId] });
-    target.value = "";
-  };
-
-  private _removeEntity = (ev: Event): void => {
-    const target = ev.currentTarget as IndexedTarget & { entityIndex: number };
-    const source = (this._config.sources ?? [])[target.index];
-    if (!source) return;
-    const entities = source.entities.filter((_, i) => i !== target.entityIndex);
-    this._updateSource(target.index, { entities });
   };
 
   static styles = css`
@@ -262,17 +201,15 @@ export class MbtaLiveCardEditor extends LitElement {
     }
     .source {
       display: flex;
-      flex-direction: column;
+      align-items: center;
       gap: 8px;
-      padding: 12px;
+      padding: 8px 12px;
       margin-bottom: 8px;
       border: 1px solid var(--divider-color);
       border-radius: 8px;
     }
-    .source-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .source-device {
+      flex: 2;
     }
     .source-label {
       flex: 1;
@@ -284,29 +221,6 @@ export class MbtaLiveCardEditor extends LitElement {
       cursor: pointer;
       font: inherit;
       padding: 4px 8px;
-    }
-    .entity-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      background: var(--secondary-background-color, #eee);
-      border-radius: 12px;
-      padding: 2px 4px 2px 10px;
-      font-size: 0.85em;
-    }
-    .chip-remove {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--secondary-text-color);
-      font: inherit;
-      line-height: 1;
-      padding: 4px;
     }
   `;
 }

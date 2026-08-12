@@ -1,13 +1,13 @@
 export interface SourceConfig {
   label?: string;
   /**
-   * Bookkeeping only, written by the GUI editor: which MBTA Live device
-   * `entities` was last suggested from, so re-opening the editor shows the
-   * right picker selection. The card itself only ever reads `entities` —
-   * hand-written YAML can omit this entirely.
+   * An MBTA Live device (one depart→arrive pair). The card resolves that
+   * device's "Upcoming"/"Following" sensor entities from the entity
+   * registry on every render — there's nothing else to configure per
+   * source, since MBTA Live already creates an entity for every field the
+   * card can display.
    */
   device_id?: string;
-  entities: string[];
 }
 
 export interface CardConfig {

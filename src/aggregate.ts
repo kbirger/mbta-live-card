@@ -1,4 +1,5 @@
 import { DEFAULT_ICON, ROUTE_TYPE_ICON_RULES } from "./const";
+import { deviceDisplayName, suggestEntitiesForDevice } from "./suggest";
 import { HomeAssistant, NormalizedTrip, SourceConfig } from "./types";
 
 export function iconForTrip(trip: NormalizedTrip): string {
@@ -51,15 +52,20 @@ function toTrip(entityId: string, sourceLabel: string | undefined, hass: HomeAss
 }
 
 /**
- * Reads every configured source entity out of hass.states, normalizes each
- * into a NormalizedTrip, and returns them sorted by actual departure time
- * (trips with no parseable departure_time sort last, stable by input order).
+ * For every configured source device, resolves its "Upcoming"/"Following"
+ * sensor entities from the entity registry, reads them out of hass.states,
+ * normalizes each into a NormalizedTrip, and returns them all sorted by
+ * actual departure time (trips with no parseable departure_time sort last,
+ * stable by input order). Sources with no (or an unresolvable) device_id
+ * simply contribute no trips.
  */
 export function collectTrips(sources: SourceConfig[], hass: HomeAssistant): NormalizedTrip[] {
   const trips: NormalizedTrip[] = [];
   for (const source of sources) {
-    for (const entityId of source.entities ?? []) {
-      const trip = toTrip(entityId, source.label, hass);
+    if (!source.device_id) continue;
+    const label = source.label ?? deviceDisplayName(source.device_id, hass);
+    for (const entityId of suggestEntitiesForDevice(source.device_id, hass)) {
+      const trip = toTrip(entityId, label, hass);
       if (trip) trips.push(trip);
     }
   }

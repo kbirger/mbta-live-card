@@ -34,19 +34,12 @@ export class MbtaLiveCard extends LitElement {
       throw new Error("Invalid configuration");
     }
     if (config.sources !== undefined && !Array.isArray(config.sources)) {
-      throw new Error("mbta-live-card: `sources` must be a list of { entities: [...] }");
+      throw new Error("mbta-live-card: `sources` must be a list of { device_id }");
     }
-    // Sources with no entities yet (e.g. mid-edit in the GUI editor, before
+    // Sources with no device_id yet (e.g. mid-edit in the GUI editor, before
     // a device has been picked) are tolerated here and simply contribute no
     // trips at render time, rather than breaking the whole card.
-    const sources = (config.sources ?? []).map((source) => {
-      if (source.entities !== undefined) {
-        if (!Array.isArray(source.entities) || source.entities.some((e) => typeof e !== "string")) {
-          throw new Error("mbta-live-card: every source's `entities` must be a list of entity ID strings");
-        }
-      }
-      return { ...source, entities: source.entities ?? [] };
-    });
+    const sources = config.sources ?? [];
     if (config.fields) {
       const unknown = config.fields.filter((f) => !FIELD_REGISTRY[f]);
       if (unknown.length) {

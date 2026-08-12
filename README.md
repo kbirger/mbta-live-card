@@ -37,16 +37,12 @@ many trips you want.
 The card has a GUI editor — add it from the card picker (or add a manual
 card with `type: custom:mbta-live-card`), then for each source use the
 **MBTA Live device** picker to pick one of your depart→arrive stop pairs.
-Its "Upcoming"/"Following" sensors (the two that carry a full trip's times,
-delay, platform, and status) are added automatically; use "Add entity
-manually" if you want to include one of MBTA Live's other, disabled-by-default
-single-value sensors instead.
+That's it — MBTA Live already creates an entity for every field the card
+knows how to show, so a source is just a device reference; the card resolves
+that device's "Upcoming"/"Following" sensors (the two that carry a full
+trip's times, delay, platform, and status) itself, every time it renders.
 
-Editing YAML directly works the same way and uses the same schema — each
-`sources` entry corresponds to one MBTA Live device (one depart→arrive pair).
-Point `entities` at that device's **Upcoming** and **Following** sensors;
-find their entity IDs under Settings → Devices & Services → MBTA Live → your
-device.
+Editing YAML directly uses the same schema:
 
 ```yaml
 type: custom:mbta-live-card
@@ -59,15 +55,15 @@ fields:
   - departure_delay
 sources:
   - label: Station A
-    entities:
-      - sensor.mbta_station_a_to_downtown_upcoming
-      - sensor.mbta_station_a_to_downtown_following
+    device_id: 3f6e8a1c9b2d4e5f6a7b8c9d0e1f2a3b
   - label: Station B
-    entities:
-      - sensor.mbta_station_b_to_downtown_upcoming
-      - sensor.mbta_station_b_to_downtown_following
+    device_id: 7a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d
 show_alerts: true
 ```
+
+Find a device's id in its URL under Settings → Devices & Services → MBTA
+Live → your device (`/config/devices/device/<device_id>`) — or just use the
+GUI editor's device picker, which fills it in for you.
 
 ### Options
 
@@ -76,7 +72,7 @@ show_alerts: true
 | `title`       | string  | none                                                  | Card header.                                                                   |
 | `max_trips`   | number  | `2`                                                    | How many combined, soonest-first trips to show.                              |
 | `fields`      | list    | `[line, to, departure_time_to, departure_delay]`      | Ordered list of fields to render per trip (see below).                       |
-| `sources`     | list    | `[]`                                                    | One entry per MBTA Live device. Each has `label` (optional), `entities` (list of entity IDs), and `device_id` (optional; written by the GUI editor so it can re-show your device selection — the card itself only ever reads `entities`, so it's safe to omit in hand-written YAML). |
+| `sources`     | list    | `[]`                                                    | One entry per MBTA Live device: `label` (optional) and `device_id` (the MBTA Live device to pull trips from). |
 | `show_alerts` | boolean | `true`                                                 | Show a trip's alerts, if any.                                                |
 
 ### Available `fields`
@@ -89,11 +85,17 @@ show_alerts: true
 
 ## How trips are combined
 
-For every entity listed under every source, the card reads its current state
-and attributes, skips anything `unavailable`/`unknown`, and sorts everything
-that's left by the trip's actual `departure_time` (not the pre-formatted
-countdown text) — so trips from different stations interleave correctly.
-The soonest `max_trips` trips are then rendered.
+For every source's `device_id`, the card looks up that device's
+"Upcoming"/"Following" sensor entities in the entity registry, reads their
+current state and attributes, skips anything `unavailable`/`unknown`, and
+sorts everything that's left by the trip's actual `departure_time` (not the
+pre-formatted countdown text) — so trips from different stations interleave
+correctly. The soonest `max_trips` trips are then rendered.
+
+This does mean the card needs those two sensors to exist with their default
+entity IDs (ending in `_upcoming`/`_following`) — if you've manually renamed
+one of them in Home Assistant, rename its entity ID back (or disable/re-add
+it) so the card can find it again.
 
 ## Development
 
