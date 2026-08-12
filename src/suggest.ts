@@ -28,11 +28,3 @@ export function deviceDisplayName(deviceId: string, hass: HomeAssistant): string
   const device = hass.devices?.[deviceId];
   return device?.name_by_user ?? device?.name ?? undefined;
 }
-
-// MBTA Live entity IDs are always generated as `sensor.mbta_<...>` (see
-// generate_entity_id("sensor.{}", f"mbta_{entity_id}", ...) in sensor.py),
-// so this is a reliable way to scope device/entity pickers to just this
-// integration without needing a config-entry lookup.
-export function isMbtaLiveEntityId(entityId: string): boolean {
-  return entityId.startsWith("sensor.mbta_");
-}

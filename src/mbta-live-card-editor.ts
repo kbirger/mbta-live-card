@@ -2,20 +2,20 @@ import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { DEFAULT_FIELDS, DEFAULT_MAX_TRIPS } from "./const";
 import { FIELD_REGISTRY } from "./fields";
-import { deviceDisplayName, isMbtaLiveEntityId } from "./suggest";
+import { deviceDisplayName } from "./suggest";
 import { CardConfig, HomeAssistant, SourceConfig } from "./types";
 
 interface IndexedTarget extends HTMLElement {
   index: number;
 }
 
-// ha-device-picker's entityFilter is called with a full state object (or,
-// on some frontend versions, a bare entity id) — handle both so this keeps
-// scoping the picker to MBTA Live devices either way.
-function mbtaEntityFilter(entityOrId: string | { entity_id: string }): boolean {
-  const entityId = typeof entityOrId === "string" ? entityOrId : entityOrId.entity_id;
-  return isMbtaLiveEntityId(entityId);
-}
+// A device selector, scoped to MBTA Live's integration domain (see
+// manifest.json: "domain": "mbtalive"). We use <ha-selector> here rather
+// than <ha-device-picker> directly because ha-selector lazily imports
+// whichever concrete picker it needs itself — <ha-device-picker> isn't
+// guaranteed to already be loaded just from opening a dashboard's edit
+// mode, and rendering it before its module loads shows up as a blank row.
+const DEVICE_SELECTOR = { device: { filter: { integration: "mbtalive" } } };
 
 @customElement("mbta-live-card-editor")
 export class MbtaLiveCardEditor extends LitElement {
@@ -26,8 +26,6 @@ export class MbtaLiveCardEditor extends LitElement {
   public setConfig(config: CardConfig): void {
     this._config = config;
   }
-
-  private _entityFilter = mbtaEntityFilter;
 
   protected render() {
     if (!this._config || !this.hass) return nothing;
@@ -86,15 +84,15 @@ export class MbtaLiveCardEditor extends LitElement {
   private _renderSource(source: SourceConfig, index: number) {
     return html`
       <div class="source">
-        <ha-device-picker
+        <ha-selector
           class="source-device"
           .hass=${this.hass}
-          .value=${source.device_id ?? ""}
+          .selector=${DEVICE_SELECTOR}
+          .value=${source.device_id}
           .index=${index}
-          .entityFilter=${this._entityFilter}
           label="MBTA Live device"
           @value-changed=${this._onDevicePicked}
-        ></ha-device-picker>
+        ></ha-selector>
         <ha-textfield
           class="source-label"
           label="Label (optional)"
