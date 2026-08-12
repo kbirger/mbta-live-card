@@ -4,6 +4,7 @@ import { collectTrips, iconForTrip } from "./aggregate";
 import { CARD_VERSION, DEFAULT_FIELDS, DEFAULT_MAX_TRIPS } from "./const";
 import { FIELD_REGISTRY } from "./fields";
 import { CardConfig, HomeAssistant, NormalizedTrip } from "./types";
+import "./mbta-live-card-editor";
 
 // eslint-disable-next-line no-console
 console.info(`%c MBTA-LIVE-CARD %c v${CARD_VERSION} `, "color: white; background: #165c31; font-weight: 700;", "color: #165c31; background: white; font-weight: 700;");
@@ -24,30 +25,35 @@ export class MbtaLiveCard extends LitElement {
     };
   }
 
+  public static getConfigElement(): HTMLElement {
+    return document.createElement("mbta-live-card-editor");
+  }
+
   public setConfig(config: CardConfig): void {
     if (!config) {
       throw new Error("Invalid configuration");
     }
-    if (!Array.isArray(config.sources) || config.sources.length === 0) {
-      throw new Error("mbta-live-card: `sources` must be a non-empty list of { entities: [...] }");
+    if (config.sources !== undefined && !Array.isArray(config.sources)) {
+      throw new Error("mbta-live-card: `sources` must be a list of { entities: [...] }");
     }
-    for (const source of config.sources) {
-      if (!Array.isArray(source.entities) || source.entities.length === 0) {
-        throw new Error("mbta-live-card: every source needs a non-empty `entities` list of entity IDs");
-      }
-      for (const entityId of source.entities) {
-        if (typeof entityId !== "string") {
-          throw new Error("mbta-live-card: source entities must be entity ID strings");
+    // Sources with no entities yet (e.g. mid-edit in the GUI editor, before
+    // a device has been picked) are tolerated here and simply contribute no
+    // trips at render time, rather than breaking the whole card.
+    const sources = (config.sources ?? []).map((source) => {
+      if (source.entities !== undefined) {
+        if (!Array.isArray(source.entities) || source.entities.some((e) => typeof e !== "string")) {
+          throw new Error("mbta-live-card: every source's `entities` must be a list of entity ID strings");
         }
       }
-    }
+      return { ...source, entities: source.entities ?? [] };
+    });
     if (config.fields) {
       const unknown = config.fields.filter((f) => !FIELD_REGISTRY[f]);
       if (unknown.length) {
         throw new Error(`mbta-live-card: unknown field(s) in \`fields\`: ${unknown.join(", ")}`);
       }
     }
-    this._config = config;
+    this._config = { ...config, sources };
   }
 
   public getCardSize(): number {

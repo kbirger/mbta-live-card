@@ -34,11 +34,19 @@ many trips you want.
 
 ## Configuration
 
-Each `sources` entry corresponds to one MBTA Live device (one depart→arrive
-pair). Point it at that device's **Upcoming** and **Following** sensors —
-those two carry the full set of trip attributes (times, delay, platform,
-status, etc.) for trip 1 and trip 2 at that stop pair. Find their entity IDs
-under Settings → Devices & Services → MBTA Live → your device.
+The card has a GUI editor — add it from the card picker (or add a manual
+card with `type: custom:mbta-live-card`), then for each source use the
+**MBTA Live device** picker to pick one of your depart→arrive stop pairs.
+Its "Upcoming"/"Following" sensors (the two that carry a full trip's times,
+delay, platform, and status) are added automatically; use "Add entity
+manually" if you want to include one of MBTA Live's other, disabled-by-default
+single-value sensors instead.
+
+Editing YAML directly works the same way and uses the same schema — each
+`sources` entry corresponds to one MBTA Live device (one depart→arrive pair).
+Point `entities` at that device's **Upcoming** and **Following** sensors;
+find their entity IDs under Settings → Devices & Services → MBTA Live → your
+device.
 
 ```yaml
 type: custom:mbta-live-card
@@ -68,7 +76,7 @@ show_alerts: true
 | `title`       | string  | none                                                  | Card header.                                                                   |
 | `max_trips`   | number  | `2`                                                    | How many combined, soonest-first trips to show.                              |
 | `fields`      | list    | `[line, to, departure_time_to, departure_delay]`      | Ordered list of fields to render per trip (see below).                       |
-| `sources`     | list    | *required*                                             | One entry per MBTA Live device. Each has `label` (optional) and `entities` (required list of entity IDs). |
+| `sources`     | list    | `[]`                                                    | One entry per MBTA Live device. Each has `label` (optional), `entities` (list of entity IDs), and `device_id` (optional; written by the GUI editor so it can re-show your device selection — the card itself only ever reads `entities`, so it's safe to omit in hand-written YAML). |
 | `show_alerts` | boolean | `true`                                                 | Show a trip's alerts, if any.                                                |
 
 ### Available `fields`

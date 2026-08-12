@@ -1,5 +1,12 @@
 export interface SourceConfig {
   label?: string;
+  /**
+   * Bookkeeping only, written by the GUI editor: which MBTA Live device
+   * `entities` was last suggested from, so re-opening the editor shows the
+   * right picker selection. The card itself only ever reads `entities` —
+   * hand-written YAML can omit this entirely.
+   */
+  device_id?: string;
   entities: string[];
 }
 
@@ -45,8 +52,23 @@ export interface HassEntity {
   attributes: HassEntityAttributes;
 }
 
+export interface HassEntityRegistryEntry {
+  entity_id: string;
+  device_id?: string | null;
+}
+
+export interface HassDeviceRegistryEntry {
+  id: string;
+  name?: string | null;
+  name_by_user?: string | null;
+}
+
 export interface HomeAssistant {
   states: Record<string, HassEntity>;
+  /** Entity registry, keyed by entity_id (present in the real dashboard `hass`). */
+  entities?: Record<string, HassEntityRegistryEntry>;
+  /** Device registry, keyed by device id (present in the real dashboard `hass`). */
+  devices?: Record<string, HassDeviceRegistryEntry>;
   [key: string]: unknown;
 }
 
