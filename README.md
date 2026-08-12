@@ -106,8 +106,21 @@ npm run build   # outputs dist/mbta-live-card.js
 npm run watch   # rebuild on change
 ```
 
-Releases are built and attached to GitHub Releases automatically by
-`.github/workflows/release.yml` whenever a `v*` tag is pushed.
+### Releasing
+
+```sh
+npm run release -- patch   # or: minor | major | X.Y.Z
+```
+
+`scripts/release.sh` cuts a release from a clean `main`, in sync with
+`origin/main`: it typechecks and builds as a pre-flight check, bumps the
+version in `package.json` and `src/const.ts`'s `CARD_VERSION`, commits and
+tags it, pushes both, rebuilds, and publishes a GitHub release with
+`dist/mbta-live-card.js` attached (via `gh`, which must be authenticated).
+
+`.github/workflows/release.yml` also builds and attaches the asset to any
+`v*` tag pushed by other means, as a fallback for releases not cut through
+the script.
 
 ## License
 

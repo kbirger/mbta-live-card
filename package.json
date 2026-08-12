@@ -12,7 +12,8 @@
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -c -w",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "release": "scripts/release.sh"
   },
   "dependencies": {
     "lit": "^3.2.1"
