@@ -1,4 +1,4 @@
-export const CARD_VERSION = "0.3.1";
+export const CARD_VERSION = "1.0.0";
 
 export const DEFAULT_MAX_TRIPS = 2;
 
