@@ -54,19 +54,11 @@ export class MbtaLiveCardEditor extends LitElement {
 
       <div class="section">
         <div class="section-title">Fields to display</div>
-        <div class="fields-grid">
-          ${Object.values(FIELD_REGISTRY).map(
-            (field) => html`
-              <ha-formfield label=${field.label}>
-                <ha-checkbox
-                  .checked=${fields.includes(field.key)}
-                  .fieldKey=${field.key}
-                  @change=${this._onFieldToggled}
-                ></ha-checkbox>
-              </ha-formfield>
-            `
-          )}
+        <div class="hint">Shown in this order on the card.</div>
+        <div class="field-list">
+          ${fields.map((key, index) => this._renderSelectedField(key, index, fields.length))}
         </div>
+        ${this._renderAvailableFields(fields)}
       </div>
 
       <div class="section">
@@ -77,6 +69,48 @@ export class MbtaLiveCardEditor extends LitElement {
         </div>
         ${sources.map((source, index) => this._renderSource(source, index))}
         <ha-button @click=${this._addSource}>+ Add source</ha-button>
+      </div>
+    `;
+  }
+
+  private _renderSelectedField(key: string, index: number, count: number) {
+    const field = FIELD_REGISTRY[key];
+    if (!field) return nothing;
+    return html`
+      <div class="field-row">
+        <span class="field-label">${field.label}</span>
+        <button
+          .index=${index}
+          @click=${this._onMoveFieldUp}
+          ?disabled=${index === 0}
+          title="Move up"
+        >
+          ↑
+        </button>
+        <button
+          .index=${index}
+          @click=${this._onMoveFieldDown}
+          ?disabled=${index === count - 1}
+          title="Move down"
+        >
+          ↓
+        </button>
+        <button class="remove-field" .index=${index} @click=${this._onRemoveField} title="Remove field">✕</button>
+      </div>
+    `;
+  }
+
+  private _renderAvailableFields(selected: string[]) {
+    const available = Object.values(FIELD_REGISTRY).filter((field) => !selected.includes(field.key));
+    if (!available.length) return nothing;
+    return html`
+      <div class="hint">Add a field:</div>
+      <div class="available-fields">
+        ${available.map(
+          (field) => html`
+            <button class="add-field" .fieldKey=${field.key} @click=${this._onAddField}>+ ${field.label}</button>
+          `
+        )}
       </div>
     `;
   }
@@ -135,14 +169,34 @@ export class MbtaLiveCardEditor extends LitElement {
     this._updateConfig({ show_alerts: checked });
   };
 
-  private _onFieldToggled = (ev: Event): void => {
-    const target = ev.target as HTMLInputElement & { fieldKey: string };
+  private _onAddField = (ev: Event): void => {
+    const target = ev.currentTarget as HTMLElement & { fieldKey: string };
     const current = this._config.fields ?? DEFAULT_FIELDS;
-    const fields = target.checked
-      ? [...current.filter((f) => f !== target.fieldKey), target.fieldKey]
-      : current.filter((f) => f !== target.fieldKey);
-    this._updateConfig({ fields });
+    if (current.includes(target.fieldKey)) return;
+    this._updateConfig({ fields: [...current, target.fieldKey] });
   };
+
+  private _onRemoveField = (ev: Event): void => {
+    const index = (ev.currentTarget as IndexedTarget).index;
+    const current = this._config.fields ?? DEFAULT_FIELDS;
+    this._updateConfig({ fields: current.filter((_, i) => i !== index) });
+  };
+
+  private _onMoveFieldUp = (ev: Event): void => {
+    this._moveField((ev.currentTarget as IndexedTarget).index, -1);
+  };
+
+  private _onMoveFieldDown = (ev: Event): void => {
+    this._moveField((ev.currentTarget as IndexedTarget).index, 1);
+  };
+
+  private _moveField(index: number, delta: number): void {
+    const fields = [...(this._config.fields ?? DEFAULT_FIELDS)];
+    const target = index + delta;
+    if (target < 0 || target >= fields.length) return;
+    [fields[index], fields[target]] = [fields[target], fields[index]];
+    this._updateConfig({ fields });
+  }
 
   private _addSource = (): void => {
     const sources = [...(this._config.sources ?? []), {}];
@@ -193,9 +247,43 @@ export class MbtaLiveCardEditor extends LitElement {
       font-size: 0.85em;
       color: var(--secondary-text-color);
     }
-    .fields-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    .field-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border: 1px solid var(--divider-color);
+      border-radius: 6px;
+    }
+    .field-label {
+      flex: 1;
+    }
+    .field-row button,
+    .add-field {
+      background: none;
+      border: 1px solid var(--divider-color);
+      border-radius: 4px;
+      color: var(--primary-text-color);
+      cursor: pointer;
+      font: inherit;
+      padding: 2px 8px;
+    }
+    .field-row button:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+    .remove-field {
+      color: var(--error-color, #db4437);
+    }
+    .available-fields {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
     }
     .source {
       display: flex;

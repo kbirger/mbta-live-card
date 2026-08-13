@@ -74,6 +74,7 @@ export interface HomeAssistant {
 
 export interface NormalizedTrip {
   entityId: string;
+  deviceId?: string;
   sourceLabel?: string;
   state: string;
   from?: string;

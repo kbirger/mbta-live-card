@@ -79,9 +79,27 @@ export class MbtaLiveCard extends LitElement {
     `;
   }
 
+  private _navigateToDevice(deviceId?: string): void {
+    if (!deviceId) return;
+    history.pushState(null, "", `/config/devices/device/${deviceId}`);
+    window.dispatchEvent(new CustomEvent("location-changed", { bubbles: false, composed: true }));
+  }
+
   private _renderTrip(trip: NormalizedTrip, fieldKeys: string[], showAlerts: boolean) {
+    const clickable = Boolean(trip.deviceId);
     return html`
-      <div class="trip">
+      <div
+        class="trip ${clickable ? "clickable" : ""}"
+        role=${clickable ? "button" : nothing}
+        tabindex=${clickable ? "0" : nothing}
+        @click=${() => this._navigateToDevice(trip.deviceId)}
+        @keydown=${(ev: KeyboardEvent) => {
+          if (clickable && (ev.key === "Enter" || ev.key === " ")) {
+            ev.preventDefault();
+            this._navigateToDevice(trip.deviceId);
+          }
+        }}
+      >
         <ha-icon class="icon" .icon=${iconForTrip(trip)} style=${trip.color ? `color: #${trip.color}` : ""}></ha-icon>
         <div class="trip-body">
           ${trip.sourceLabel ? html`<div class="source">${trip.sourceLabel}</div>` : nothing}
@@ -121,6 +139,15 @@ export class MbtaLiveCard extends LitElement {
     }
     .trip:first-child {
       border-top: none;
+    }
+    .trip.clickable {
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .trip.clickable:hover,
+    .trip.clickable:focus-visible {
+      background: var(--secondary-background-color, rgba(0, 0, 0, 0.04));
+      outline: none;
     }
     .icon {
       margin-top: 2px;

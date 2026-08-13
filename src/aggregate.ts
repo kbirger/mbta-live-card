@@ -19,7 +19,12 @@ function normalizeAlerts(alerts: unknown): string | undefined {
   return text.length ? text : undefined;
 }
 
-function toTrip(entityId: string, sourceLabel: string | undefined, hass: HomeAssistant): NormalizedTrip | undefined {
+function toTrip(
+  entityId: string,
+  deviceId: string,
+  sourceLabel: string | undefined,
+  hass: HomeAssistant
+): NormalizedTrip | undefined {
   const entity = hass.states[entityId];
   if (!entity || entity.state === "unavailable" || entity.state === "unknown") {
     return undefined;
@@ -27,6 +32,7 @@ function toTrip(entityId: string, sourceLabel: string | undefined, hass: HomeAss
   const a = entity.attributes ?? {};
   return {
     entityId,
+    deviceId,
     sourceLabel: sourceLabel ?? a.friendly_name,
     state: entity.state,
     from: a.from,
@@ -56,8 +62,14 @@ function toTrip(entityId: string, sourceLabel: string | undefined, hass: HomeAss
  * sensor entities from the entity registry, reads them out of hass.states,
  * normalizes each into a NormalizedTrip, and returns them all sorted by
  * actual departure time (trips with no parseable departure_time sort last,
- * stable by input order). Sources with no (or an unresolvable) device_id
- * simply contribute no trips.
+ * stable by input order), deduplicated by train number. Sources with no (or
+ * an unresolvable) device_id simply contribute no trips.
+ *
+ * Deduplication matters because a single physical train often stops at more
+ * than one of the user's configured stations, so the same train can show up
+ * as an "Upcoming"/"Following" trip from two different source devices. Left
+ * undeduplicated, that train could fill every slot up to max_trips by
+ * itself, crowding out the next distinct train.
  */
 export function collectTrips(sources: SourceConfig[], hass: HomeAssistant): NormalizedTrip[] {
   const trips: NormalizedTrip[] = [];
@@ -65,7 +77,7 @@ export function collectTrips(sources: SourceConfig[], hass: HomeAssistant): Norm
     if (!source.device_id) continue;
     const label = source.label ?? deviceDisplayName(source.device_id, hass);
     for (const entityId of suggestEntitiesForDevice(source.device_id, hass)) {
-      const trip = toTrip(entityId, label, hass);
+      const trip = toTrip(entityId, source.device_id, label, hass);
       if (trip) trips.push(trip);
     }
   }
@@ -78,7 +90,21 @@ export function collectTrips(sources: SourceConfig[], hass: HomeAssistant): Norm
     if (a.time !== b.time) return a.time - b.time;
     return a.index - b.index;
   });
-  return withIndex.map((entry) => entry.trip);
+  return dedupeByTrain(withIndex.map((entry) => entry.trip));
+}
+
+function dedupeByTrain(trips: NormalizedTrip[]): NormalizedTrip[] {
+  const seen = new Set<string>();
+  const result: NormalizedTrip[] = [];
+  for (const trip of trips) {
+    // Trips with no train number (uncommon, but the field is optional
+    // upstream) are never deduplicated against each other.
+    const key = trip.train ? `train:${trip.train}` : `entity:${trip.entityId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(trip);
+  }
+  return result;
 }
 
 function parseTime(value?: string): number | undefined {

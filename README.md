@@ -42,6 +42,14 @@ knows how to show, so a source is just a device reference; the card resolves
 that device's "Upcoming"/"Following" sensors (the two that carry a full
 trip's times, delay, platform, and status) itself, every time it renders.
 
+In the editor, the **Fields to display** list can be reordered with the
+↑/↓ buttons on each row — the card renders fields in that order — and new
+fields are added from the "Add a field" list below it.
+
+Clicking a trip on the card opens that trip's device page (Settings →
+Devices & Services → MBTA Live → the matching device), so you can jump
+straight to its raw entities/attributes.
+
 Editing YAML directly uses the same schema:
 
 ```yaml
@@ -90,7 +98,11 @@ For every source's `device_id`, the card looks up that device's
 current state and attributes, skips anything `unavailable`/`unknown`, and
 sorts everything that's left by the trip's actual `departure_time` (not the
 pre-formatted countdown text) — so trips from different stations interleave
-correctly. The soonest `max_trips` trips are then rendered.
+correctly. If a physical train stops at more than one of your configured
+stations, it can appear as a trip from more than one source; those are
+deduplicated by train number, keeping the earliest occurrence, so one train
+never fills more than one of the `max_trips` slots. The soonest `max_trips`
+distinct trips are then rendered.
 
 This does mean the card needs those two sensors to exist with their default
 entity IDs (ending in `_upcoming`/`_following`) — if you've manually renamed
