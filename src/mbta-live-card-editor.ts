@@ -219,9 +219,13 @@ export class MbtaLiveCardEditor extends LitElement {
     const index = (ev.currentTarget as IndexedTarget).index;
     const deviceId = ev.detail.value;
     const source = (this._config.sources ?? [])[index];
+    // Re-derive the label from the newly picked device every time, rather
+    // than keeping whatever was stored: a label carried over from a
+    // previously picked device would silently go stale and mismatch the
+    // device the trip actually links to when clicked.
     this._updateSource(index, {
       device_id: deviceId || undefined,
-      label: source?.label ?? (deviceId ? deviceDisplayName(deviceId, this.hass) : undefined),
+      label: deviceId ? deviceDisplayName(deviceId, this.hass) : source?.label,
     });
   };
 
