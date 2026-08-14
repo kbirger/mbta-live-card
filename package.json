@@ -1,6 +1,6 @@
 {
   "name": "mbta-live-card",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A Home Assistant Lovelace card that combines one or more MBTA Live integration devices into a single, sorted list of upcoming trips.",
   "license": "MIT",
   "author": "kbirger",
