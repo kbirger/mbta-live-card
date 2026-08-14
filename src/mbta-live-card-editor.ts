@@ -38,14 +38,14 @@ export class MbtaLiveCardEditor extends LitElement {
         <ha-textfield
           label="Title"
           .value=${this._config.title ?? ""}
-          @change=${this._onTitleChanged}
+          @input=${this._onTitleChanged}
         ></ha-textfield>
         <ha-textfield
           label="Max trips shown"
           type="number"
           min="1"
           .value=${String(this._config.max_trips ?? DEFAULT_MAX_TRIPS)}
-          @change=${this._onMaxTripsChanged}
+          @input=${this._onMaxTripsChanged}
         ></ha-textfield>
         <ha-formfield label="Show alerts">
           <ha-switch .checked=${this._config.show_alerts ?? true} @change=${this._onShowAlertsChanged}></ha-switch>
@@ -132,7 +132,7 @@ export class MbtaLiveCardEditor extends LitElement {
           label="Label (optional)"
           .value=${source.label ?? ""}
           .index=${index}
-          @change=${this._onSourceLabelChanged}
+          @input=${this._onSourceLabelChanged}
         ></ha-textfield>
         <button class="remove-source" .index=${index} @click=${this._removeSource} title="Remove source">
           Remove
@@ -154,14 +154,23 @@ export class MbtaLiveCardEditor extends LitElement {
     this._updateConfig({ sources });
   }
 
+  // Bound to `input` (every keystroke) rather than `change` (blur only):
+  // hass updates re-render this editor often (the underlying MBTA sensors
+  // poll frequently), and each re-render reapplies `.value` from `_config`.
+  // On `change`, that reapplication happens before blur ever fires and
+  // wipes whatever the user had typed, making the field look uneditable.
   private _onTitleChanged = (ev: Event): void => {
     const value = (ev.target as HTMLInputElement).value;
     this._updateConfig({ title: value || undefined });
   };
 
   private _onMaxTripsChanged = (ev: Event): void => {
-    const value = Number((ev.target as HTMLInputElement).value);
-    this._updateConfig({ max_trips: Number.isFinite(value) && value > 0 ? value : DEFAULT_MAX_TRIPS });
+    const raw = (ev.target as HTMLInputElement).value;
+    if (raw === "") return; // let the field stay empty mid-edit instead of snapping back
+    const value = Number(raw);
+    if (Number.isFinite(value) && value > 0) {
+      this._updateConfig({ max_trips: value });
+    }
   };
 
   private _onShowAlertsChanged = (ev: Event): void => {
